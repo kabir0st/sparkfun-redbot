@@ -11,17 +11,26 @@ RedBotSensor left_sensor(A6);
 RedBotSensor center_sensor(A5);
 RedBotSensor right_sensor(A7);
 
+static bool LED = 1;
+
+enum actions {
+};
+
 void setup() {
   Serial.begin(9600);
-
   pinMode(STATUS_LED, OUTPUT);
-
   encoder.clearEnc(BOTH);
-
   Serial.println("RedBot Sensor Test");
 }
 
+
+
+
+
+
 void loop() {
+  digitalWrite(STATUS_LED, LED ? HIGH : LOW);
+  LED = !LED;
   int left_value = left_sensor.read();
   int center_value = center_sensor.read();
   int right_value = right_sensor.read();
@@ -42,5 +51,5 @@ void loop() {
   Serial.print(left_ticks);
   Serial.print("  R=");
   Serial.println(right_ticks);
-  delay(200);
+  delay(500);
 }
