@@ -50,6 +50,11 @@ void setup()
   Serial.println("RedBot Sensor Test");
 }
 
+
+
+
+
+
 void loop() {
 
 
@@ -69,5 +74,5 @@ void loop() {
   Serial.print(left_ticks);
   Serial.print("  R=");
   Serial.println(right_ticks);
-  delay(200);
+  delay(500);
 }
