@@ -11,20 +11,49 @@ RedBotSensor left_sensor(A6);
 RedBotSensor center_sensor(A5);
 RedBotSensor right_sensor(A7);
 
-void setup() {
+
+enum class State  {
+  STOP,
+  START
+};
+
+State current_state = State::STOP;
+State last_state = State::STOP;
+
+class Sensors {
+  public:
+    // for ir sensors
+    int ir_left;
+    int ir_cent;
+    int ir_right;
+    // for motors
+    int32_t tick_left;
+    int32_t tick_right;
+  
+    void read_data(){
+      ir_left = left_sensor.read();
+      ir_cent = center_sensor.read();
+      ir_right = right_sensor.read();
+
+      tick_left = encoder.getTicks(LEFT);
+      tick_right = encoder.getTicks(RIGHT);
+      return;
+    }
+};
+
+
+void setup()
+{
   Serial.begin(9600);
-
   pinMode(STATUS_LED, OUTPUT);
-
   encoder.clearEnc(BOTH);
-
   Serial.println("RedBot Sensor Test");
 }
 
 void loop() {
-  int left_value = left_sensor.read();
-  int center_value = center_sensor.read();
-  int right_value = right_sensor.read();
+
+
+  if (current_state = State::STOP)
 
   Serial.print("Sensor Readings: ");
   Serial.print("L=");
@@ -34,8 +63,6 @@ void loop() {
   Serial.print("  R=");
   Serial.println(right_value);
 
-  int left_ticks = encoder.getTicks(LEFT);
-  int right_ticks = encoder.getTicks(RIGHT);
 
   Serial.print("Encoder: ");
   Serial.print("L=");
