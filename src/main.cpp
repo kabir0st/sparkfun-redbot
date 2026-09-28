@@ -25,7 +25,6 @@ void setup()
 {
 	Serial.begin(9600);
 	pinMode(STATUS_LED, OUTPUT);
-	encoder.clearEnc(BOTH);
 	Serial.println("RedBot Setup Complete.");
 }
 
