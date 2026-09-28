@@ -1,78 +1,67 @@
 #include <Arduino.h>
 #include <RedBot.h>
+#include <types.hpp>
 
 constexpr int STATUS_LED = 13;
 
 RedBotMotors motors;
-
-RedBotEncoder encoder = RedBotEncoder(A2, A3);
-
-RedBotSensor left_sensor(A6);
-RedBotSensor center_sensor(A5);
-RedBotSensor right_sensor(A7);
-
-
-enum class State  {
-  STOP,
-  START
-};
+RedBotButton button;
 
 State current_state = State::STOP;
 State last_state = State::STOP;
 
-class Sensors {
-  public:
-    // for ir sensors
-    int ir_left;
-    int ir_cent;
-    int ir_right;
-    // for motors
-    int32_t tick_left;
-    int32_t tick_right;
-  
-    void read_data(){
-      ir_left = left_sensor.read();
-      ir_cent = center_sensor.read();
-      ir_right = right_sensor.read();
-
-      tick_left = encoder.getTicks(LEFT);
-      tick_right = encoder.getTicks(RIGHT);
-      return;
-    }
+constexpr Step test_plan[] = {
+  {Action::FORWARD,    1000},
+  {Action::STOP,        0},
+  {Action::ROTATE,  90},
+  {Action::STOP,        0},
+  {Action::FORWARD,    500},
+  {Action::STOP,        0},
+  {Action::ROTATE,  90},
+  {Action::STOP,        0},
 };
-
 
 void setup()
 {
-  Serial.begin(9600);
-  pinMode(STATUS_LED, OUTPUT);
-  encoder.clearEnc(BOTH);
-  Serial.println("RedBot Sensor Test");
+	Serial.begin(9600);
+	pinMode(STATUS_LED, OUTPUT);
+	encoder.clearEnc(BOTH);
+	Serial.println("RedBot Setup Complete.");
 }
 
+Robot bot;
 
+int id = 0;
 
+void loop()
+{
+	// start end setup
+	if (button.read())
+	{
+		if (current_state == State::STOP)
+		{
+			current_state = State::START;
+		}
+		else
+		{
+			current_state = State::STOP;
+		}
+	}
 
+	if (current_state == State::STOP) {
+		motors.brake();
+		return;
+	};
 
-
-void loop() {
-
-
-  if (current_state = State::STOP)
-
-  Serial.print("Sensor Readings: ");
-  Serial.print("L=");
-  Serial.print(left_value);
-  Serial.print("  C=");
-  Serial.print(center_value);
-  Serial.print("  R=");
-  Serial.println(right_value);
-
-
-  Serial.print("Encoder: ");
-  Serial.print("L=");
-  Serial.print(left_ticks);
-  Serial.print("  R=");
-  Serial.println(right_ticks);
-  delay(500);
+	// main start loop
+	if (current_state == State::START) {
+		if (test_plan[id].action == Action::FORWARD) {
+			bot.drive(test_plan[id].value);
+			id = id + 1;
+		} else if (test_plan[id].action == Action::STOP ) {
+			bot.stop();
+		} else if (test_plan[id].action == Action::ROTATE) {
+			bot.rotate(test_plan[id].value);
+		}
+	}
 }
