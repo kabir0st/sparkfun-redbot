@@ -4,22 +4,23 @@
 
 constexpr int STATUS_LED = 13;
 
-RedBotMotors motors;
 RedBotButton button;
 
-State current_state = State::STOP;
-State last_state = State::STOP;
+StateManager state;
+LogManager logger(state);
+Robot bot(logger);
 
 constexpr Step test_plan[] = {
   {Action::FORWARD,    1000},
-  {Action::STOP,        0},
+  {Action::STOP,        100},
   {Action::ROTATE,  90},
-  {Action::STOP,        0},
+  {Action::STOP,        100},
   {Action::FORWARD,    500},
-  {Action::STOP,        0},
+  {Action::STOP,        100},
   {Action::ROTATE,  90},
-  {Action::STOP,        0},
+  {Action::STOP,        100},
 };
+constexpr int plan_len = sizeof(test_plan) / sizeof(test_plan[0]);
 
 void setup()
 {
@@ -28,39 +29,50 @@ void setup()
 	Serial.println("RedBot Setup Complete.");
 }
 
-Robot bot;
-
 int id = 0;
+bool last_read = 0;
+int pressed = 0;
 
 void loop()
 {
-	// start end setup
-	if (button.read())
+    bool current_read = button.read();
+	if (last_read != current_read && current_read) {
+		pressed = pressed + 1;
+		if (state.current() == State::STOP) {
+			state.update(State::START);
+			logger.inform("starting bot");
+		} else {
+			state.update(State::STOP);
+			logger.inform("stopping bot");
+		}
+	}
+
+	if (state.current() == State::STOP && state.previous() == State::START) {
+		bot.motors.brake();
+		state.update(State::STOP);
+		logger.inform("Stopping everything");
+	}
+	else if (state.current() == State::START)
 	{
-		if (current_state == State::STOP)
-		{
-			current_state = State::START;
+		const Step& step = test_plan[id];
+		if (step.action == Action::FORWARD) {
+			bot.drive(step.value);
+		} else if (step.action == Action::STOP) {
+			bot.stop(step.value);
+		} else if (step.action == Action::ROTATE) {
+			bot.rotate(step.value);
 		}
-		else
-		{
-			current_state = State::STOP;
-		}
-	}
-
-	if (current_state == State::STOP) {
-		motors.brake();
-		return;
-	};
-
-	// main start loop
-	if (current_state == State::START) {
-		if (test_plan[id].action == Action::FORWARD) {
-			bot.drive(test_plan[id].value);
-			id = id + 1;
-		} else if (test_plan[id].action == Action::STOP ) {
-			bot.stop();
-		} else if (test_plan[id].action == Action::ROTATE) {
-			bot.rotate(test_plan[id].value);
+		id = id + 1;
+		if (id >= plan_len) {
+			id = 0;
+			state.update(State::STOP);
+			logger.inform("Plan complete");
 		}
 	}
+	else
+	{
+		logger.inform("No Command.");
+	}
+	delay(80);
+	last_read = current_read;
 }
