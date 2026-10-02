@@ -2,6 +2,7 @@
 \usepackage[left=3cm, right=3cm, top=2cm]{geometry}
 
 \usepackage[utf8]{inputenc}
+\usepackage{amsmath}
 \usepackage{booktabs}
 \usepackage{graphicx}
 \usepackage{float}
@@ -15,22 +16,35 @@
     urlcolor=cyan,
 }
 
-% Figure slot: shows the image if figs/<file> exists, otherwise an empty box.
-\newcommand{\pic}[3]{% file, caption, label
+% Image if figs/<file> exists, otherwise an empty box of the given width.
+\newcommand{\img}[2]{% file, width
+  \IfFileExists{figs/#1}
+    {\includegraphics[width=#2,height=0.3\textheight,keepaspectratio]{figs/#1}}
+    {\fbox{\parbox[c][5cm][c]{#2}{\centering Image: \texttt{figs/\detokenize{#1}}}}}}
+
+% Figure slot with one image.
+\newcommand{\pic}[4][0.7\textwidth]{% [width], file, caption, label
   \begin{figure}[H]
     \centering
-    \IfFileExists{figs/#1}
-      {\includegraphics[width=0.7\textwidth]{figs/#1}}
-      {\fbox{\parbox[c][5cm][c]{0.7\textwidth}{\centering Image: \texttt{figs/\detokenize{#1}}}}}
-    \caption{#2}
-    \label{#3}
+    \img{#2}{#1}
+    \caption{#3}
+    \label{#4}
+  \end{figure}}
+
+% Figure slot with two images side by side.
+\newcommand{\picpair}[4]{% file1, file2, caption, label
+  \begin{figure}[H]
+    \centering
+    \img{#1}{0.45\textwidth}\hspace{0.5cm}\img{#2}{0.45\textwidth}
+    \caption{#3}
+    \label{#4}
   \end{figure}}
 
 \title{DEIS Lab 2: Basic Robotics 2  \\ DT8007 VT26, Halmstad University}
 \author{Binay Kumar Sah,  binsah25@student.hh.se, Master's in Embedded and Intelligence System
         \and
-        Kabir Tamari,  @student.hh.se, TAEIS 25}
-\date{October, 2026}
+        Kabir Tamari, kamtam25@student.hh.se, TAEIS 25}
+\date{1 October 2026}
 
 \begin{document}
 
@@ -46,23 +60,34 @@ SparkFun RedBot ground robot to move.
 
 \subsection{Getting started}
 We installed the UNO R4 board package in the Arduino IDE, selected the board and
-port, and uploaded the Blink example.
+port, and uploaded the Blink example. We ran it on a classic Arduino Uno as well
+as on the UNO R4 WiFi.
 
-\pic{lab2_a.jpeg}{Blink example running on the Arduino UNO R4 WiFi.}{fig:blink}
+\picpair{uno-blk-off.jpg}{uno-blk-on.jpg}{Blink example on an Arduino Uno: LED L
+off (left) and on (right).}{fig:blink}
+
+\pic{unor4-2.jpg}{Sketch running on the Arduino UNO R4 WiFi (LED L on).}{fig:blink-r4}
 
 \subsection{Connecting to WiFi}
 We uploaded the \texttt{SimpleWebServerWiFi} example with the course router's
 SSID and password, opened the IP address from the Serial Monitor in a browser,
 and turned the LED on and off (\texttt{/H} and \texttt{/L}).
 
-\pic{lab2_b.jpeg}{LED turned on from the browser over WiFi.}{fig:wifi}
+\pic{unor4.jpg}{LED on pin 13 turned on from the browser over WiFi. The terminal
+on the left shows the HTTP requests received by the board.}{fig:wifi}
 
 % ---------------- (b) Prototyping ------------------------
 \section{Prototyping}
 Together with the supervisor we did simple tasks with a multimeter, soldering
-iron and drill.
+iron and drill. We used the multimeter to check batteries, and soldered LEDs and
+wires onto a perfboard held in a helping-hands stand.
 
-\pic{prototyping.jpeg}{Prototyping souvenir photo.}{fig:proto}
+\pic{btrcheck.jpt.jpg}{Multimeter set up for checking batteries.}{fig:proto-multimeter}
+
+\pic{solder.jpg}{Perfboard with an LED in the helping hands, next to the
+soldering station.}{fig:proto}
+
+\pic{solder2.jpg}{Solder joints on the perfboard.}{fig:proto-joints}
 
 % ---------------- (c) Drone ------------------------
 \section{Drone}
@@ -71,14 +96,18 @@ iron and drill.
 Using the Ryze Tello app we took off, rotated left and right, flew up and down,
 forward and backward, strafed left and right, and landed.
 
-\pic{drone_manual.jpeg}{Manual flying souvenir photo.}{fig:drone-manual}
+\pic{dj-manual.jpg}{Tello hovering in the lab during manual flight.}{fig:drone-manual}
 
 \subsection{Control via Python}
-We used Shiva's script\footnote{\url{https://github.com/SHiTU23/Tello_drone/blob/main/src/control_and_capture.py}}
-to get the video feed and control the drone from a laptop, and saved an image
-from the drone's camera.
+\pic[\textwidth]{cmd-dj.jpg}{Controlling the drone from Python. The terminal shows the
+commands sent, the responses, and the saved camera frames.}{fig:drone-python}
 
-\pic{drone_python.jpeg}{Image captured from the drone's camera via Python.}{fig:drone-python}
+We then added a simple autonomous sequence that only rotates: take off, wait
+1\,s, rotate 90$^\circ$ clockwise, wait 1\,s, rotate 90$^\circ$ counter-clockwise, wait 1\,s,
+and land.
+
+\pic[\textwidth]{telo-py.jpg}{Output of the autonomous sequence (take off, rotate,
+land).}{fig:drone-auto}
 
 % ---------------- (d) Ground robot ------------------------
 \section{Ground robot}
@@ -86,23 +115,28 @@ We assembled the RedBot (main board, IR line sensors, wheel encoders, alkaline
 battery pack) and worked through the SparkFun tutorials 1--3 (basic motions),
 6 (line following) and 7 (encoders)\footnote{\url{https://learn.sparkfun.com/tutorials/experiment-guide-for-redbot-with-shadow-chassis}}.
 
-\pic{redbot.jpeg}{Assembled RedBot.}{fig:redbot}
+\paragraph{Comment.} We did not have black tape to make a line-following
+track, so we connected the RedBot to the Arduino UNO R4 WiFi over serial and
+drove it from a browser instead. Commands go from WiFi to the UNO and from the
+UNO to the RedBot:
+\[
+  \text{Browser} \xrightarrow{\text{WiFi}} \text{UNO R4 WiFi}
+  \xrightarrow{\text{serial RX/TX}} \text{RedBot}
+\]
+The UNO TX (pin 1) is wired to the RedBot RX (A1), the UNO RX (pin 0) to the
+RedBot TX (A0), and the grounds are connected; the link runs at 9600 baud. The
+UNO creates its own WiFi network and serves a page with W/A/S/D controls. Each
+key press reaches the UNO as an HTTP request, and the UNO passes the letter on
+to the RedBot over serial. The RedBot drives the motors and replies with its IR
+line-sensor and encoder readings, which the UNO shows live on the page. This is
+how we tested the basic motions, the line sensors and the encoders without a
+track. As a safety measure, the RedBot stops if no command arrives for 500\,ms.
 
-\paragraph{Comment.} Since we did not have tape to make a line-following track,
-we used the Arduino UNO R4 WiFi as the main controller instead. It was connected
-to the RedBot through RX/TX (UNO TX $\rightarrow$ RedBot RX, UNO RX $\leftarrow$
-RedBot TX, common GND, 9600 baud) and powered by a mobile power bank. The UNO
-serves a web page with W/A/S/D controls and forwards each command to the RedBot.
-The RedBot drives the motors and sends back the IR line-sensor and encoder
-readings, which are shown live on the page. This is how we tested the motions,
-the line sensors and the encoders. As a safety measure, the RedBot stops if no
-command arrives for 500\,ms.
+\pic{redbot.jpg}{RedBot with the UNO R4 WiFi mounted on top, wired over serial
+RX/TX, and powered by a power bank.}{fig:redbot}
 
-\pic{redbot_wiring.jpeg}{UNO R4 WiFi (on power bank) connected to the RedBot over RX/TX.}{fig:redbot-wiring}
-
-\pic{redbot_web.jpeg}{Web control page with live IR and encoder readings.}{fig:redbot-web}
-
-\pic{redbot_souvenir.jpeg}{Ground robot souvenir photo.}{fig:redbot-souvenir}
+\pic[0.5\textwidth]{redbot-contorl.png}{Web control page served by the UNO R4 WiFi, with live IR
+(left/centre/right) and encoder readings.}{fig:redbot-web}
 
 % ---------------- Contribution ------------------------
 \section*{Contribution}
@@ -114,15 +148,11 @@ command arrives for 500\,ms.
     \midrule
     (a) Arduino      & 50\% & 50\% \\
     (b) Prototyping  & 50\% & 50\% \\
-    (c) Drone        & 50\% & 50\% \\
-    (d) Ground robot & 50\% & 50\% \\
+    (c) Drone        & 80\% & 20\% \\
+    (d) Ground robot & 20\% & 80\% \\
     Report           & 50\% & 50\% \\
     \bottomrule
   \end{tabular}
 \end{table}
-
-\section*{Use of AI}
-An AI assistant (Claude) was used to help write the code for the ground robot
-task and to draft this report.
 
 \end{document}
