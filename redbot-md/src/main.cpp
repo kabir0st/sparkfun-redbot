@@ -1,78 +1,67 @@
+// RedBot: takes one-letter commands from the UNO R4, drives the motors, and
+// answers each command with one line of sensor readings.
+//
+//   UNO R4 ---- 'w' 'a' 's' 'd' or 'x' (stop) ----> RedBot   (about every 200 ms)
+//   UNO R4 <--- "IR L=.. C=.. R=.. | Enc L=.. R=.." -- RedBot   (reply to each command)
+//
+// The UNO is wired to A0/A1 (RedBot's software serial port):
+//   RedBot A0 (TX) -> UNO pin 0 (RX)
+//   RedBot A1 (RX) <- UNO pin 1 (TX)
+
 #include <Arduino.h>
 #include <RedBot.h>
-#include <types.hpp>
 
-constexpr int STATUS_LED = 13;
+RedBotSoftwareSerial uno;       // always uses A0 = TX, A1 = RX
+RedBotMotors motors;
+RedBotEncoder encoder(A2, A3);  // left, right
+RedBotSensor leftIR(A6);
+RedBotSensor centerIR(A5);
+RedBotSensor rightIR(A7);
 
-RedBotButton button;
+const int DRIVE_SPEED = 150;  // 0..255
+const int TURN_SPEED = 100;
+const unsigned long TIMEOUT_MS = 500;  // stop if no command arrives for this long
 
-StateManager state;
-LogManager logger(state);
-Robot bot(logger);
+unsigned long lastCommandTime = 0;
 
-constexpr Step test_plan[] = {
-  {Action::FORWARD,    1000},
-  {Action::STOP,        100},
-  {Action::ROTATE,  90},
-  {Action::STOP,        100},
-  {Action::FORWARD,    500},
-  {Action::STOP,        100},
-  {Action::ROTATE,  90},
-  {Action::STOP,        100},
-};
-constexpr int plan_len = sizeof(test_plan) / sizeof(test_plan[0]);
+void sendSensors()
+{
+	uno.print("IR L=");
+	uno.print(leftIR.read());
+	uno.print(" C=");
+	uno.print(centerIR.read());
+	uno.print(" R=");
+	uno.print(rightIR.read());
+	uno.print(" | Enc L=");
+	uno.print(encoder.getTicks(LEFT));
+	uno.print(" R=");
+	uno.println(encoder.getTicks(RIGHT));
+}
 
 void setup()
 {
-	Serial.begin(9600);
-	pinMode(STATUS_LED, OUTPUT);
-	Serial.println("RedBot Setup Complete.");
+	uno.begin(9600);
 }
-
-int id = 0;
-bool last_read = 0;
-int pressed = 0;
 
 void loop()
 {
-    bool current_read = button.read();
-	if (last_read != current_read && current_read) {
-		pressed = pressed + 1;
-		if (state.current() == State::STOP) {
-			state.update(State::START);
-			logger.inform("starting bot");
-		} else {
-			state.update(State::STOP);
-			logger.inform("stopping bot");
-		}
+	// 1. If the UNO sent a command, act on it and reply with the sensors.
+	if (uno.available() > 0) {
+		char cmd = uno.read();
+
+		if (cmd == 'w')      motors.drive(DRIVE_SPEED);   // forward
+		else if (cmd == 's') motors.drive(-DRIVE_SPEED);  // backward
+		else if (cmd == 'a') motors.pivot(-TURN_SPEED);   // turn left
+		else if (cmd == 'd') motors.pivot(TURN_SPEED);    // turn right
+		else if (cmd == 'x') motors.brake();              // stop
+		else return;                                      // garbled byte: ignore it
+
+		lastCommandTime = millis();
+		sendSensors();
 	}
 
-	if (state.current() == State::STOP && state.previous() == State::START) {
-		bot.motors.brake();
-		state.update(State::STOP);
-		logger.inform("Stopping everything");
+	// 2. Safety: if commands stop coming (page closed, Wi-Fi dropped), stop.
+	if (millis() - lastCommandTime > TIMEOUT_MS) {
+		motors.brake();
 	}
-	else if (state.current() == State::START)
-	{
-		const Step& step = test_plan[id];
-		if (step.action == Action::FORWARD) {
-			bot.drive(step.value);
-		} else if (step.action == Action::STOP) {
-			bot.stop(step.value);
-		} else if (step.action == Action::ROTATE) {
-			bot.rotate(step.value);
-		}
-		id = id + 1;
-		if (id >= plan_len) {
-			id = 0;
-			state.update(State::STOP);
-			logger.inform("Plan complete");
-		}
-	}
-	else
-	{
-		logger.inform("No Command.");
-	}
-	delay(80);
-	last_read = current_read;
 }
